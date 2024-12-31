@@ -36,7 +36,13 @@ check_ssh_keys() {
     echo_info "Checking for existing SSH keys..."
     if [ -f "$HOME/.ssh/id_ed25519" ] || [ -f "$HOME/.ssh/id_rsa" ]; then
         echo_info "Existing SSH keys found."
-        return 0
+        read -p "Do you want to overwrite existing keys? (yes/no): " overwrite
+        if [ "$overwrite" = "yes" ]; then
+            rm -f "$HOME/.ssh/id_ed25519" "$HOME/.ssh/id_ed25519.pub"
+            return 1
+        else
+            return 0
+        fi
     else
         echo_info "No existing SSH keys found."
         return 1
@@ -46,13 +52,13 @@ check_ssh_keys() {
 # Generate a new SSH key
 generate_ssh_key() {
     local email=$1
+    echo_info "Generating a new SSH key with email: $email"
+    mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
 
-    echo_info "Generating a new SSH key..."
-    if command -v ssh-keygen >/dev/null 2>&1; then
-        ssh-keygen -t ed25519 -C "$email" -f "$HOME/.ssh/id_ed25519" -N ""
-        echo_info "SSH key generated at $HOME/.ssh/id_ed25519."
+    if ssh-keygen -t ed25519 -C "$email" -f "$HOME/.ssh/id_ed25519" -N ""; then
+        echo_info "SSH key successfully generated with email: $email"
     else
-        echo_error "ssh-keygen not found. Please install OpenSSH tools and try again."
+        echo_error "Failed to generate SSH key. Please check your environment."
         exit 1
     fi
 }
@@ -67,9 +73,13 @@ add_ssh_key_to_agent() {
 
 # Copy the SSH key to the clipboard or display it
 show_ssh_key() {
-    echo_info "Public SSH key (add this to GitHub):"
-    cat "$HOME/.ssh/id_ed25519.pub"
-    echo_info "You can copy the above key manually or use a clipboard manager."
+    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+        echo_info "Public SSH key (add this to GitHub):"
+        cat "$HOME/.ssh/id_ed25519.pub"
+    else
+        echo_error "Public key not found. SSH key generation may have failed."
+        exit 1
+    fi
 }
 
 # Main script
